@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling>=1.20"]
+build-backend = "hatchling.build"
+
+[project]
+name = "osrs-prices-client"
+version = "0.1.0"
+description = "Client utilities for working with the Old School RuneScape prices API"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+  { name = "NAME", email = "username@example.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+  "requests>=2.31",
+  "pandas>=2.0",
+  "numpy>=1.23"
+]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Libraries :: Python Modules"
+]
+keywords = ["osrs", "runescape", "prices", "api", "client"]
+
+[project.urls]
+Homepage = "https://github.com/USERNAME/osrs-prices-client"
+Repository = "https://github.com/USERNAME/osrs-prices-client"
+Issues = "https://github.com/USERNAME/osrs-prices-client/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/osrs_prices_client"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/osrs_prices_client",
+  "LICENSE",
+  "README.md"
+]
