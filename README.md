@@ -14,47 +14,69 @@ pip install osrs-prices-client
 
 ## Fetch Prices + Build Features
 ```python
-from osrs_prices_client import (
-    RealtimePricesClient,
-    RealtimePricesThickClient,
-    RealtimePricesRequest,
-    Timestep,
-    InterpolationMethod,
-    VolumeWeightedAveragePrice,
-    ForwardVWAPReturn,
-    FeatureBuilderOrchestrator,
-)
+import osrs_prices_client as opc
 
-client = RealtimePricesClient(user_agent="my-osrs-app/0.1")
-thick = RealtimePricesThickClient(client)
+client = opc.RealtimePricesClient(user_agent="my-osrs-app/0.1")
+thick = opc.RealtimePricesThickClient(client)
 
-request = RealtimePricesRequest(
-    item_ids={"4151", "11840"},
-    timestep=Timestep.ONE_DAY,
-    interpolation_method=InterpolationMethod.LINEAR,
+request = opc.models.RealtimePricesRequest(
+    item_ids={"2", "4152"},
+    timestep=opc.models.Timestep.ONE_DAY,
+    interpolation_method=opc.models.InterpolationMethod.LINEAR,
 )
 prices = thick.get_prices(request)
 
 builders = [
-    VolumeWeightedAveragePrice(),      # adds volume_weighted_average_price
-    ForwardVWAPReturn(horizons=[1, 3]) # adds vwap_return_fwd_1 and vwap_return_fwd_3
+    opc.features.MidpointPrice(),                         # adds midpoint_price
+    opc.features.ExponentialMovingAverage(
+        column="midpoint_price",
+        span=5,
+    ),                                                    # adds ema_midpoint_price_5
 ]
-features = FeatureBuilderOrchestrator.build_features(prices, builders)
-print(features.columns)
+feature_frame = opc.orchestration.FeatureBuilderOrchestrator.build_features(prices, builders)
+print(feature_frame.columns)
 ```
-The resulting dataframe keeps each item in a MultiIndex column (`item_id`, `feature_name`). Any feature claimed by a builder is appended to the item’s columns, so downstream consumers can select features per item or flatten the index as needed.
+The resulting dataframe keeps each item in a MultiIndex column (`item_id`, `feature_name`). Any feature claimed by a builder is appended to the item’s columns, so downstream consumers can select features per item or flatten the index as needed. Seeing the difference is as simple as printing the column index before and after:
 
-## Roll Your Own Feature Builder
-Creating a new feature is as simple as subclassing `FeatureBuilder`, declaring the columns you require, and returning a dataframe with the new columns. Here’s a playful example that computes a z-scored VWAP to highlight unusual price moves:
+```text
+>>> prices.columns
+MultiIndex(
+  [('4152', 'avgHighPrice'), ('4152', 'avgLowPrice'),
+   ('4152', 'highPriceVolume'), ('4152', 'lowPriceVolume'),
+   ('2', 'avgHighPrice'), ('2', 'avgLowPrice'),
+   ('2', 'highPriceVolume'), ('2', 'lowPriceVolume')]
+)
+
+>>> feature_frame.columns
+MultiIndex(
+  [('4152', 'avgHighPrice'), ('4152', 'avgLowPrice'),
+   ('4152', 'highPriceVolume'), ('4152', 'lowPriceVolume'),
+   ('4152', 'midpoint_price'), ('4152', 'ema_midpoint_price_5'),
+   ('2', 'avgHighPrice'), ('2', 'avgLowPrice'),
+   ('2', 'highPriceVolume'), ('2', 'lowPriceVolume'),
+   ('2', 'midpoint_price'), ('2', 'ema_midpoint_price_5')]
+)
+```
+Notice how each item retains the raw wiki fields while the engineered signals are appended under the same item key. That’s the pattern every feature builder follows.
+
+## Develop Your Own Feature Builders
+Every custom feature must subclass `opc.FeatureBuilder` and implements four methods:
+- `get_name(self) -> str`: returns a stable identifier used for logging and column naming.
+- `requires(self) -> set[str]`: lists the base/derived columns that must exist before `build` runs.
+- `provides(self) -> set[str]`: declares the column names your builder will add; keeps dependency resolution predictable.
+- `build(self, data: pd.DataFrame) -> pd.DataFrame`: copies or mutates the dataframe and returns it with the new columns attached.
+
+Accept any tunable parameters in `__init__` so the builder remains flexible.
+Here’s an example that puts those hooks into action by computing a z-scored VWAP:
 
 ```python
-from dataclasses import dataclass
 import pandas as pd
-from osrs_prices_client import FeatureBuilder
+import osrs_prices_client as opc
 
-@dataclass
-class VWAPZScore(FeatureBuilder):
-    window: int = 14
+
+class VWAPZScore(opc.FeatureBuilder):
+    def __init__(self, window: int):
+        self.window = window
 
     def get_name(self) -> str:
         return f"vwap_zscore_{self.window}"
@@ -76,19 +98,22 @@ Add the new builder to your list and the orchestrator will ensure dependencies (
 
 ```python
 builders = [
-    VolumeWeightedAveragePrice(),
+    opc.features.VolumeWeightedAveragePrice(),
     VWAPZScore(window=14),
 ]
-features = FeatureBuilderOrchestrator.build_features(prices, builders)
+feature_frame = opc.orchestration.FeatureBuilderOrchestrator.build_features(prices, builders)
 ```
 Mix and match as many builders as you like—the orchestrator raises a helpful error if any requirements are unsatisfied, preventing silent failures.
 
 ## Bundled Feature Builders
-- `VolumeWeightedAveragePrice`: aggregates wiki high/low prices and volumes into a single VWAP series.
-- `ForwardVWAPReturn`: generates forward-looking percentage returns for configurable horizons.
-- `ForwardVWAPDirection`: produces boolean targets indicating whether returns are positive over each horizon.
+The library ships with a full toolbox so you can mix levels, momentum, volatility, and targets without writing boilerplate:
+- **Price levels & smoothing**: `MidpointPrice`, `RollingMean`, `RollingMedian`, `ExponentialMovingAverage`
+- **Returns & momentum**: `SimpleReturn`, `LogReturn`, `RateOfChange`, `ForwardLogReturn`, `ForwardVWAPReturn`
+- **Targets & direction**: `ForwardVWAPDirection` emits Int8 targets for up/down moves
+- **Bands & volatility**: `BollingerBands`, `RollingVolatility`, `RollingPriceChannel`, `AverageTrueRange`
+- **Volume & price-volume blends**: `VolumeWeightedAveragePrice`, `RollingVolume`, `LagFeature`
 
-Bring your own builders to extend this list with alpha signals, risk metrics, or anything else your workflow needs.
+Instantiate any of these via `opc.features.<BuilderName>` and call `opc.features.BUILT_IN_BUILDERS` when you need the definitive list. When you outgrow the defaults, drop in your own `opc.FeatureBuilder` subclasses.
 
 ## License
 Released under the MIT License. See `LICENSE` for details.

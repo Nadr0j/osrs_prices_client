@@ -3,12 +3,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from osrs_prices_client import RateLimitedSession
+from osrs_prices_client import clients
 from osrs_prices_client.client import rate_limited_session as rate_limited_session_module
 
 
 def test_rate_limited_session_respects_min_interval(monkeypatch):
-    session = RateLimitedSession(max_tps=2)  # 0.5 seconds between calls
+    session = clients.RateLimitedSession(max_tps=2)  # 0.5 seconds between calls
 
     time_values = iter([0.0, 0.5, 1.0, 1.6])
     sleep_calls: list[float] = []
