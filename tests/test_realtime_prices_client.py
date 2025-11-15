@@ -36,3 +36,25 @@ def test_realtime_prices_client_call_endpoint_uses_session():
     expected_endpoint = "https://prices.runescape.wiki/api/v1/osrs/timeseries?timestep=24h&id=4151"
     client.session.request.assert_called_once_with("GET", expected_endpoint)
     assert response == "response"
+
+
+def test_realtime_prices_client_mapping_endpoint():
+    client = RealtimePricesClient(user_agent="agent")
+
+    # pylint: disable-next=protected-access
+    endpoint = client._get_mapping_endpoint()
+
+    assert endpoint == "https://prices.runescape.wiki/api/v1/osrs/mapping"
+
+
+def test_realtime_prices_client_call_mapping_endpoint_uses_session():
+    client = RealtimePricesClient(user_agent="agent")
+    client.session.request = MagicMock(return_value="mapping-response")
+
+    # pylint: disable-next=protected-access
+    response = client._call_mapping_endpoint()
+
+    client.session.request.assert_called_once_with(
+        "GET", "https://prices.runescape.wiki/api/v1/osrs/mapping"
+    )
+    assert response == "mapping-response"
