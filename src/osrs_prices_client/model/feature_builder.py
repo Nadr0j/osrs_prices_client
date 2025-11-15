@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import pandas as pd
 
+
 class FeatureBuilder(ABC):
     """Abstract base class for feature builders that define feature extraction logic.
 
@@ -9,6 +10,7 @@ class FeatureBuilder(ABC):
     builders can rely on those columns being present before any derived
     features are computed.
     """
+
     @abstractmethod
     def get_name(self) -> str:
         pass

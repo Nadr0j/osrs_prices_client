@@ -30,10 +30,29 @@ classifiers = [
 ]
 keywords = ["osrs", "runescape", "prices", "api", "client"]
 
+[project.optional-dependencies]
+dev = [
+  "pylint>=3.2,<5.0",
+  "black>=24.0,<25.0"
+]
+
 [project.urls]
 Homepage = "https://github.com/USERNAME/osrs-prices-client"
 Repository = "https://github.com/USERNAME/osrs-prices-client"
 Issues = "https://github.com/USERNAME/osrs-prices-client/issues"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+include = "\\.(py|pyi)$"
+extend-exclude = """
+/(
+    dist
+  | build
+  | .venv
+  | venv
+)/
+"""
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/osrs_prices_client"]

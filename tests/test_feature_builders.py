@@ -1,10 +1,11 @@
+# pylint: disable=duplicate-code
+
 import numpy as np
 import pandas as pd
 import pandas.testing as pdt
 import pytest
 
 from osrs_prices_client import FeatureBuilder, features
-
 
 
 def test_volume_weighted_average_price_build_creates_expected_column():
@@ -52,7 +53,12 @@ def test_volume_weighted_average_price_metadata_exposes_requirements_and_name():
     builder = features.VolumeWeightedAveragePrice()
 
     assert builder.get_name() == "volume_weighted_average_price"
-    assert builder.requires() == {"avgHighPrice", "avgLowPrice", "highPriceVolume", "lowPriceVolume"}
+    assert builder.requires() == {
+        "avgHighPrice",
+        "avgLowPrice",
+        "highPriceVolume",
+        "lowPriceVolume",
+    }
     assert builder.provides() == {"volume_weighted_average_price"}
 
 
@@ -125,8 +131,12 @@ def test_forward_log_return_builder_computes_expected_values():
     expected_h3 = np.log(prices["midpoint_price"].shift(-3) / prices["midpoint_price"])
     expected_h3.name = "forward_log_returns_midpoint_price_3"
 
-    pdt.assert_series_equal(result["forward_log_returns_midpoint_price_1"], expected_h1, check_names=True)
-    pdt.assert_series_equal(result["forward_log_returns_midpoint_price_3"], expected_h3, check_names=True)
+    pdt.assert_series_equal(
+        result["forward_log_returns_midpoint_price_1"], expected_h1, check_names=True
+    )
+    pdt.assert_series_equal(
+        result["forward_log_returns_midpoint_price_3"], expected_h3, check_names=True
+    )
 
 
 def test_rolling_volatility_builder_matches_manual_calculation():
@@ -139,7 +149,9 @@ def test_rolling_volatility_builder_matches_manual_calculation():
     expected = log_returns.rolling(3).std(ddof=0) * np.sqrt(365)
     expected.name = "rolling_volatility_midpoint_price_3_annualized"
 
-    pdt.assert_series_equal(result["rolling_volatility_midpoint_price_3_annualized"], expected, check_names=True)
+    pdt.assert_series_equal(
+        result["rolling_volatility_midpoint_price_3_annualized"], expected, check_names=True
+    )
 
 
 def test_rolling_mean_and_median_builders_compute_expected_values():
@@ -162,8 +174,12 @@ def test_rolling_mean_and_median_builders_compute_expected_values():
     expected_median = prices["midpoint_price"].rolling(3, min_periods=2).median()
     expected_median.name = "rolling_median_midpoint_price_3"
 
-    pdt.assert_series_equal(mean_result["rolling_mean_midpoint_price_2"], expected_mean, check_names=True)
-    pdt.assert_series_equal(median_result["rolling_median_midpoint_price_3"], expected_median, check_names=True)
+    pdt.assert_series_equal(
+        mean_result["rolling_mean_midpoint_price_2"], expected_mean, check_names=True
+    )
+    pdt.assert_series_equal(
+        median_result["rolling_median_midpoint_price_3"], expected_median, check_names=True
+    )
 
 
 def test_rolling_price_channel_tracks_extrema():
@@ -192,9 +208,15 @@ def test_bollinger_bands_builder_matches_manual_calculation():
     zscore_expected = (prices["midpoint_price"] - mean) / std
     zscore_expected.name = "bollinger_midpoint_price_2_zscore"
 
-    pdt.assert_series_equal(result["bollinger_midpoint_price_2_upper"], upper_expected, check_names=True)
-    pdt.assert_series_equal(result["bollinger_midpoint_price_2_lower"], lower_expected, check_names=True)
-    pdt.assert_series_equal(result["bollinger_midpoint_price_2_zscore"], zscore_expected, check_names=True)
+    pdt.assert_series_equal(
+        result["bollinger_midpoint_price_2_upper"], upper_expected, check_names=True
+    )
+    pdt.assert_series_equal(
+        result["bollinger_midpoint_price_2_lower"], lower_expected, check_names=True
+    )
+    pdt.assert_series_equal(
+        result["bollinger_midpoint_price_2_zscore"], zscore_expected, check_names=True
+    )
 
 
 def test_average_true_range_builder_matches_hand_calculation():
@@ -303,6 +325,7 @@ def test_forward_vwap_direction_metadata_reflects_requested_horizons():
 
 
 def test_feature_builder_base_methods_have_no_default_behavior():
+    # pylint: disable=useless-parent-delegation
     class PassthroughBuilder(FeatureBuilder):
         def get_name(self) -> str:
             return super().get_name()
@@ -315,6 +338,8 @@ def test_feature_builder_base_methods_have_no_default_behavior():
 
         def build(self, data: pd.DataFrame) -> pd.DataFrame:
             return super().build(data)
+
+    # pylint: enable=useless-parent-delegation
 
     builder = PassthroughBuilder()
 
@@ -338,7 +363,10 @@ def test_simple_return_metadata_and_validation():
     builder = features.SimpleReturn(column="midpoint_price", horizons=[1, 3])
     assert builder.get_name() == "simple_return_midpoint_price"
     assert builder.requires() == {"midpoint_price"}
-    assert builder.provides() == {"simple_return_midpoint_price_1", "simple_return_midpoint_price_3"}
+    assert builder.provides() == {
+        "simple_return_midpoint_price_1",
+        "simple_return_midpoint_price_3",
+    }
 
     with pytest.raises(ValueError):
         features.SimpleReturn(column="midpoint_price", horizons=[])

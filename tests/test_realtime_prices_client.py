@@ -20,7 +20,7 @@ def test_realtime_prices_client_initializes_session_with_retry():
 
 def test_realtime_prices_client_get_endpoint():
     client = RealtimePricesClient(user_agent="agent")
-
+    # pylint: disable-next=protected-access
     endpoint = client._get_endpoint("4151", Timestep.ONE_DAY)
 
     assert endpoint == "https://prices.runescape.wiki/api/v1/osrs/timeseries?timestep=24h&id=4151"
@@ -30,6 +30,7 @@ def test_realtime_prices_client_call_endpoint_uses_session():
     client = RealtimePricesClient(user_agent="agent")
     client.session.request = MagicMock(return_value="response")
 
+    # pylint: disable-next=protected-access
     response = client._call_endpoint("4151", Timestep.ONE_DAY)
 
     expected_endpoint = "https://prices.runescape.wiki/api/v1/osrs/timeseries?timestep=24h&id=4151"

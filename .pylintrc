@@ -1,0 +1,37 @@
+[MASTER]
+py-version=3.10
+ignore=dist,build,.venv,venv
+jobs=1
+load-plugins=
+init-hook='import sys; from pathlib import Path; sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))'
+
+[MESSAGES CONTROL]
+disable=
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    too-few-public-methods,
+    too-many-arguments,
+    fixme
+
+[REPORTS]
+score=no
+output-format=colorized
+
+[FORMAT]
+max-line-length=100
+good-names=i,j,k,ex,df
+
+[SIMILARITIES]
+ignore-comments=yes
+ignore-docstrings=yes
+min-similarity-lines=6
+
+[TYPECHECK]
+ignored-modules=requests,pandas,numpy
+
+[BASIC]
+allow-any-import-level=yes
+
+[DESIGN]
+max-parents=7

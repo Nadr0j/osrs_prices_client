@@ -1,8 +1,11 @@
 import time
 import requests
 
+
 class RateLimitedSession(requests.Session):
-    """Requests Session object that overloads the request method to have single-threaded rate limiting"""
+    """Requests Session object that overloads the request method to
+    have single-threaded rate limiting"""
+
     def __init__(self, max_tps: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._min_interval = 1 / max_tps

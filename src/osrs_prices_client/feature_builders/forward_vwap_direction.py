@@ -1,8 +1,10 @@
 import pandas as pd
 from ..model.feature_builder import FeatureBuilder
 
+
 class ForwardVWAPDirection(FeatureBuilder):
     """Boolean targets: 1 if forward return > 0, else 0."""
+
     def __init__(self, horizons: list[int]):
         if not horizons:
             raise ValueError("horizons must be provided")

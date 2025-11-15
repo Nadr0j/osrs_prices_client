@@ -20,6 +20,7 @@ def _response_with_data(data: list[dict]) -> MagicMock:
 
 def test_thick_client_parses_and_interpolates_responses():
     realtime_client = MagicMock(spec=RealtimePricesClient)
+    # pylint: disable-next=protected-access
     realtime_client._call_endpoint.side_effect = [
         _response_with_data(
             [
@@ -51,13 +52,17 @@ def test_thick_client_parses_and_interpolates_responses():
     assert ("200", "avgHighPrice") in result.columns
     assert result.loc[2, ("200", "avgHighPrice")] == pytest.approx(210.0)
 
+    # pylint: disable-next=protected-access
     realtime_client._call_endpoint.assert_any_call("100", Timestep.ONE_DAY)
+    # pylint: disable-next=protected-access
     realtime_client._call_endpoint.assert_any_call("200", Timestep.ONE_DAY)
+    # pylint: disable-next=protected-access
     assert realtime_client._call_endpoint.call_count == 2
 
 
 def test_thick_client_keeps_missing_values_without_interpolation():
     realtime_client = MagicMock(spec=RealtimePricesClient)
+    # pylint: disable-next=protected-access
     realtime_client._call_endpoint.side_effect = [
         _response_with_data(
             [

@@ -1,8 +1,10 @@
 import pandas as pd
 from ..model.feature_builder import FeatureBuilder
 
+
 class ForwardVWAPReturn(FeatureBuilder):
     """Targets: r_{t+1}, r_{t+2}, ..."""
+
     def __init__(self, horizons: list[int]):
         if not horizons:
             raise ValueError("horizons must be provided")

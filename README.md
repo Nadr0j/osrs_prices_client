@@ -115,5 +115,16 @@ The library ships with a full toolbox so you can mix levels, momentum, volatilit
 
 Instantiate any of these via `opc.features.<BuilderName>` and call `opc.features.BUILT_IN_BUILDERS` when you need the definitive list. When you outgrow the defaults, drop in your own `opc.FeatureBuilder` subclasses.
 
+## Development
+Install the optional dev dependencies and format/lint before sending changes upstream:
+
+```bash
+pip install -e .[dev]
+black src tests
+pylint src tests
+```
+
+The lint configuration lives in `.pylintrc` and already adds `src/` to `PYTHONPATH`, so imports should resolve without extra flags. Formatting is handled by Black with a 100-column limit to line up with pylint—run it before committing so diffs stay minimal, then follow up with pylint to catch logic/style issues that formatters can’t fix.
+
 ## License
 Released under the MIT License. See `LICENSE` for details.

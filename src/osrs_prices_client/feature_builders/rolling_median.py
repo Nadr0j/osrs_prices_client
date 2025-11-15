@@ -24,7 +24,7 @@ class RollingMedian(FeatureBuilder):
 
     def build(self, data: pd.DataFrame) -> pd.DataFrame:
         df = data.copy()
-        df[self.get_name()] = df[self.column].rolling(
-            window=self.window, min_periods=self.min_periods
-        ).median()
+        df[self.get_name()] = (
+            df[self.column].rolling(window=self.window, min_periods=self.min_periods).median()
+        )
         return df

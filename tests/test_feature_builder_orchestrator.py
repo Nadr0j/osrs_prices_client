@@ -45,7 +45,10 @@ def test_schedule_orders_builders_by_dependencies():
         transform=lambda df: df.assign(feat_b=df["feat_a"] * 2),
     )
 
-    scheduled = FeatureBuilderOrchestrator._schedule_feature_builders(base_data, [builder_b, builder_a])
+    # pylint: disable-next=protected-access
+    scheduled = FeatureBuilderOrchestrator._schedule_feature_builders(
+        base_data, [builder_b, builder_a]
+    )
 
     assert scheduled == [builder_a, builder_b]
 
@@ -93,7 +96,7 @@ def test_schedule_raises_when_requirements_unsatisfied():
     )
 
     with pytest.raises(ValueError) as exc:
+        # pylint: disable-next=protected-access
         FeatureBuilderOrchestrator._schedule_feature_builders(base_data, [impossible_builder])
 
     assert "Impossible" in str(exc.value)
-
