@@ -19,13 +19,23 @@ def _steps(black_check: bool = False) -> list[Step]:
     format_cmd = ["black", "src", "tests"]
     if black_check:
         format_cmd.insert(1, "--check")
+    python_exe = sys.executable
 
     return [
-        ("test", ["pytest"], base_env),
+        (
+            "test",
+            [python_exe, "-m", "coverage", "run", "--source=src", "-m", "pytest"],
+            base_env,
+        ),
         (
             "lint",
             ["pylint", "src", "tests"],
             {"PYLINTHOME": str(PYLINTHOME)},
+        ),
+        (
+            "coverage",
+            [python_exe, "-m", "coverage", "report", "--fail-under=95"],
+            base_env,
         ),
         ("format", format_cmd, base_env),
     ]

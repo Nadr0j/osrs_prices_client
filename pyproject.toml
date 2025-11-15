@@ -34,7 +34,8 @@ keywords = ["osrs", "runescape", "prices", "api", "client"]
 dev = [
   "pylint>=3.2,<5.0",
   "black>=24.0,<25.0",
-  "pytest>=8.0,<9.0"
+  "pytest>=8.0,<9.0",
+  "coverage>=7.4,<8.0"
 ]
 
 [project.urls]
