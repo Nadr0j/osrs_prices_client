@@ -6,7 +6,6 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Final
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PYLINTHOME = PROJECT_ROOT / ".pylint.d"
@@ -15,8 +14,12 @@ PYLINTHOME.mkdir(exist_ok=True)
 Step = tuple[str, list[str], dict[str, str]]
 
 
-def _steps() -> list[Step]:
-    base_env = {}
+def _steps(black_check: bool = False) -> list[Step]:
+    base_env: dict[str, str] = {}
+    format_cmd = ["black", "src", "tests"]
+    if black_check:
+        format_cmd.insert(1, "--check")
+
     return [
         ("test", ["pytest"], base_env),
         (
@@ -24,12 +27,12 @@ def _steps() -> list[Step]:
             ["pylint", "src", "tests"],
             {"PYLINTHOME": str(PYLINTHOME)},
         ),
-        ("format", ["black", "src", "tests"], base_env),
+        ("format", format_cmd, base_env),
     ]
 
 
-def run() -> int:
-    steps = _steps()
+def run(black_check: bool = False) -> int:
+    steps = _steps(black_check=black_check)
     results: list[tuple[str, str]] = []
     base_env = os.environ.copy()
     aborted = False
@@ -65,4 +68,4 @@ def run() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(run())
+    sys.exit(run(black_check="--check" in sys.argv))
