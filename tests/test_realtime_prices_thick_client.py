@@ -10,6 +10,7 @@ from osrs_prices_client import (
     RealtimePricesThickClient,
     Timestep,
 )
+from osrs_prices_client.exceptions import InvalidItemIdError
 
 
 def _response_with_data(data: list[dict]) -> MagicMock:
@@ -18,8 +19,15 @@ def _response_with_data(data: list[dict]) -> MagicMock:
     return response
 
 
+def _mapping_response(ids: list[int]) -> MagicMock:
+    response = MagicMock()
+    response.json.return_value = [{"id": item_id} for item_id in ids]
+    return response
+
+
 def test_thick_client_parses_and_interpolates_responses():
     realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100, 200])
     # pylint: disable-next=protected-access
     realtime_client._call_endpoint.side_effect = [
         _response_with_data(
@@ -62,6 +70,7 @@ def test_thick_client_parses_and_interpolates_responses():
 
 def test_thick_client_keeps_missing_values_without_interpolation():
     realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100, 200])
     # pylint: disable-next=protected-access
     realtime_client._call_endpoint.side_effect = [
         _response_with_data(
@@ -95,6 +104,7 @@ def test_thick_client_keeps_missing_values_without_interpolation():
 
 def test_thick_client_caches_per_item_frames_by_default():
     realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100, 200])
 
     responses = {
         "100": _response_with_data(
@@ -135,6 +145,7 @@ def test_thick_client_caches_per_item_frames_by_default():
 
 def test_thick_client_can_disable_cache():
     realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100, 200])
     # pylint: disable-next=protected-access
     realtime_client._call_endpoint.side_effect = [
         _response_with_data(
@@ -177,6 +188,7 @@ def test_thick_client_can_disable_cache():
 
 def test_thick_client_clear_cache_triggers_refetch():
     realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100, 200])
     # pylint: disable-next=protected-access
     realtime_client._call_endpoint.side_effect = [
         _response_with_data(
@@ -218,6 +230,7 @@ def test_thick_client_clear_cache_triggers_refetch():
 
 def test_thick_client_reuses_cached_items_when_requests_overlap():
     realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100, 200, 300])
     call_log: list[tuple[str, Timestep]] = []
 
     def _call_endpoint_side_effect(item_id, timestep):
@@ -260,6 +273,7 @@ def test_thick_client_reuses_cached_items_when_requests_overlap():
 
 def test_thick_client_cache_preserves_raw_frames_for_future_interpolation_modes():
     realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100, 200])
     responses = {
         "100": _response_with_data(
             [
@@ -267,7 +281,7 @@ def test_thick_client_cache_preserves_raw_frames_for_future_interpolation_modes(
                 {"timestamp": 3, "avgHighPrice": 120},
             ]
         ),
-        "shadow": _response_with_data(
+        "200": _response_with_data(
             [
                 {"timestamp": 1, "avgHighPrice": 50},
                 {"timestamp": 2, "avgHighPrice": 55},
@@ -285,12 +299,12 @@ def test_thick_client_cache_preserves_raw_frames_for_future_interpolation_modes(
     thick_client = RealtimePricesThickClient(realtime_client)
 
     request_linear = RealtimePricesRequest(
-        item_ids=("100", "shadow"),
+        item_ids=("100", "200"),
         timestep=Timestep.ONE_DAY,
         interpolation_method=InterpolationMethod.LINEAR,
     )
     request_none = RealtimePricesRequest(
-        item_ids=("100", "shadow"),
+        item_ids=("100", "200"),
         timestep=Timestep.ONE_DAY,
         interpolation_method=InterpolationMethod.NONE,
     )
@@ -303,3 +317,49 @@ def test_thick_client_cache_preserves_raw_frames_for_future_interpolation_modes(
 
     # pylint: disable-next=protected-access
     assert realtime_client._call_endpoint.call_count == 2
+
+
+def test_thick_client_validates_item_ids_against_mapping():
+    realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([2, 4151])
+
+    thick_client = RealtimePricesThickClient(realtime_client)
+    request = RealtimePricesRequest(
+        item_ids=("2", "3", "4151"),
+        timestep=Timestep.ONE_DAY,
+        interpolation_method=InterpolationMethod.NONE,
+    )
+
+    with pytest.raises(InvalidItemIdError) as exc:
+        thick_client.get_prices(request)
+
+    assert exc.value.invalid_item_ids == ("3",)
+    # pylint: disable-next=protected-access
+    realtime_client._call_endpoint.assert_not_called()
+
+
+def test_thick_client_caches_mapping_lookup():
+    realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100, 200, 300])
+
+    # pylint: disable-next=protected-access
+    realtime_client._call_endpoint.side_effect = [
+        _response_with_data(
+            [
+                {"timestamp": 1, "avgHighPrice": 100},
+            ]
+        ),
+    ]
+
+    thick_client = RealtimePricesThickClient(realtime_client)
+    request = RealtimePricesRequest(
+        item_ids=("100",),
+        timestep=Timestep.ONE_DAY,
+        interpolation_method=InterpolationMethod.NONE,
+    )
+
+    thick_client.get_prices(request)
+    thick_client.get_prices(request)
+
+    # pylint: disable-next=protected-access
+    assert realtime_client._call_mapping_endpoint.call_count == 1

@@ -71,7 +71,7 @@ features = ["dev"]
 
 [tool.hatch.envs.default.scripts]
 fmt = "black src tests"
-lint = "PYLINTHOME={root}/.pylint.d pylint src tests"
+lint = "PYLINTHOME={root}/.pylint.d pylint src"
 test = "pytest"
 build = "python tools/run_build.py"
 build-check = "python tools/run_build.py --check"

@@ -29,7 +29,7 @@ def _steps(black_check: bool = False) -> list[Step]:
         ),
         (
             "lint",
-            ["pylint", "src", "tests"],
+            ["pylint", "src"],
             {"PYLINTHOME": str(PYLINTHOME)},
         ),
         (

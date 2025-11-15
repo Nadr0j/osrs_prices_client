@@ -1,6 +1,7 @@
 """Public interface for the OSRS prices client."""
 
 from .client import RealtimePricesClient, RealtimePricesThickClient
+from .exceptions import InvalidItemIdError
 from .model import FeatureBuilder, InterpolationMethod, RealtimePricesRequest, Timestep
 from .orchestrator import FeatureBuilderOrchestrator
 
@@ -14,6 +15,7 @@ __all__ = [
     "RealtimePricesClient",
     "RealtimePricesThickClient",
     "FeatureBuilder",
+    "InvalidItemIdError",
     "InterpolationMethod",
     "RealtimePricesRequest",
     "Timestep",

@@ -27,7 +27,15 @@ class RealtimePricesClient:
             f"/api/v1/osrs/timeseries?timestep={timestep.value}&id={item_id}"
         )
 
+    def _get_mapping_endpoint(self) -> str:
+        return "https://prices.runescape.wiki/api/v1/osrs/mapping"
+
     def _call_endpoint(self, item_id: str, timestep: Timestep) -> Response:
         endpoint = self._get_endpoint(item_id, timestep)
+        response = self.session.request("GET", endpoint)
+        return response
+
+    def _call_mapping_endpoint(self) -> Response:
+        endpoint = self._get_mapping_endpoint()
         response = self.session.request("GET", endpoint)
         return response
