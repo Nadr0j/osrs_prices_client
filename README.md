@@ -124,7 +124,13 @@ black src tests
 pylint src tests
 ```
 
-The lint configuration lives in `.pylintrc` and already adds `src/` to `PYTHONPATH`, so imports should resolve without extra flags. Formatting is handled by Black with a 100-column limit to line up with pylint—run it before committing so diffs stay minimal, then follow up with pylint to catch logic/style issues that formatters can’t fix.
+The lint configuration lives in `.pylintrc` and already adds `src/` to `PYTHONPATH`, so imports should resolve without extra flags. Formatting is handled by Black with a 100-column limit to line up with pylint—run it before committing so diffs stay minimal, then follow up with pylint to catch logic/style issues that formatters can’t fix. Prefer using Hatch to run the whole stack in one go:
+
+```bash
+hatch run build
+```
+
+That command installs the `dev` extras in an isolated environment (if needed), runs pytest, then pylint (with the repo-local cache), and finally Black, printing a short summary of each step’s result.
 
 ## License
 Released under the MIT License. See `LICENSE` for details.
