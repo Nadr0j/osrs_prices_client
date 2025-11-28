@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import Iterable
+import warnings
 
 import pandas as pd
 from requests import Response
@@ -26,7 +27,25 @@ class RealtimePricesThickClient:
         self._known_item_ids: set[str] | None = None
 
     def _parse_response(self, item_id: str, response: Response) -> pd.DataFrame:
-        df = pd.DataFrame(response.json()["data"])
+        payload = response.json().get("data", [])
+        if not payload:
+            warnings.warn(
+                f"Realtime prices response for item {item_id} contained no data; skipping item.",
+                RuntimeWarning,
+            )
+            return pd.DataFrame(index=pd.Index([], name="timestamp"))
+
+        df = pd.DataFrame(payload)
+        if "timestamp" not in df.columns:
+            warnings.warn(
+                (
+                    f"Realtime prices response for item {item_id} missing 'timestamp' column; "
+                    "skipping item."
+                ),
+                RuntimeWarning,
+            )
+            return pd.DataFrame(index=pd.Index([], name="timestamp"))
+
         df = df.set_index("timestamp")
         df.columns = pd.MultiIndex.from_product([[item_id], df.columns])
         return df
