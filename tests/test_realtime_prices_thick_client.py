@@ -363,3 +363,36 @@ def test_thick_client_caches_mapping_lookup():
 
     # pylint: disable-next=protected-access
     assert realtime_client._call_mapping_endpoint.call_count == 1
+
+
+def test_thick_client_skips_items_with_missing_timestamp_column():
+    realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100, 200])
+    # First item returns data without a timestamp; second item is valid
+    # pylint: disable-next=protected-access
+    realtime_client._call_endpoint.side_effect = [
+        _response_with_data(
+            [
+                {"avgHighPrice": 100},
+            ]
+        ),
+        _response_with_data(
+            [
+                {"timestamp": 1, "avgHighPrice": 200},
+            ]
+        ),
+    ]
+
+    thick_client = RealtimePricesThickClient(realtime_client)
+    request = RealtimePricesRequest(
+        item_ids=("100", "200"),
+        timestep=Timestep.ONE_DAY,
+        interpolation_method=InterpolationMethod.NONE,
+    )
+
+    with pytest.warns(RuntimeWarning):
+        result = thick_client.get_prices(request)
+
+    assert ("100", "avgHighPrice") not in result.columns
+    assert ("200", "avgHighPrice") in result.columns
+    assert set(result.index) == {1}
