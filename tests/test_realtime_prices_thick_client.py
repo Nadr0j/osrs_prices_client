@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from osrs_prices_client import (
+    InterpolationFill,
     InterpolationMethod,
     RealtimePricesClient,
     RealtimePricesRequest,
@@ -66,6 +67,54 @@ def test_thick_client_parses_and_interpolates_responses():
     realtime_client._call_endpoint.assert_any_call("200", Timestep.ONE_DAY)
     # pylint: disable-next=protected-access
     assert realtime_client._call_endpoint.call_count == 2
+
+
+def test_thick_client_can_limit_interpolation_to_gaps_only():
+    realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100, 200])
+    # pylint: disable-next=protected-access
+    realtime_client._call_endpoint.side_effect = [
+        _response_with_data(
+            [
+                {"timestamp": 3, "avgHighPrice": 100},
+                {"timestamp": 5, "avgHighPrice": 120},
+            ]
+        ),
+        _response_with_data(
+            [
+                {"timestamp": 1, "avgHighPrice": 10},
+                {"timestamp": 2, "avgHighPrice": 20},
+                {"timestamp": 3, "avgHighPrice": 30},
+                {"timestamp": 4, "avgHighPrice": 40},
+                {"timestamp": 5, "avgHighPrice": 50},
+            ]
+        ),
+    ]
+
+    thick_client = RealtimePricesThickClient(realtime_client)
+
+    gaps_only_request = RealtimePricesRequest(
+        item_ids=("100", "200"),
+        timestep=Timestep.ONE_DAY,
+        interpolation_method=InterpolationMethod.LINEAR,
+        interpolation_fill=InterpolationFill.GAPS_ONLY,
+    )
+    gaps_only = thick_client.get_prices(gaps_only_request)
+
+    assert pd.isna(gaps_only.loc[1, ("100", "avgHighPrice")])
+    assert pd.isna(gaps_only.loc[2, ("100", "avgHighPrice")])
+    assert gaps_only.loc[4, ("100", "avgHighPrice")] == pytest.approx(110.0)
+
+    backfill_request = RealtimePricesRequest(
+        item_ids=("100", "200"),
+        timestep=Timestep.ONE_DAY,
+        interpolation_method=InterpolationMethod.LINEAR,
+        interpolation_fill=InterpolationFill.BACKFILL,
+    )
+    backfilled = thick_client.get_prices(backfill_request)
+
+    assert backfilled.loc[1, ("100", "avgHighPrice")] == pytest.approx(100.0)
+    assert backfilled.loc[2, ("100", "avgHighPrice")] == pytest.approx(100.0)
 
 
 def test_thick_client_keeps_missing_values_without_interpolation():

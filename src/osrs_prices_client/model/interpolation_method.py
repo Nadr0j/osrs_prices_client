@@ -6,3 +6,12 @@ class InterpolationMethod(Enum):
 
     LINEAR = "linear"
     NONE = "none"
+
+
+class InterpolationFill(Enum):
+    """Determines where interpolation should be applied within a series."""
+
+    ALL = "all"
+    BACKFILL = "backfill"
+    FORWARD_FILL = "forward_fill"
+    GAPS_ONLY = "gaps_only"
