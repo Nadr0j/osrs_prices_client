@@ -117,6 +117,146 @@ def test_thick_client_can_limit_interpolation_to_gaps_only():
     assert backfilled.loc[2, ("100", "avgHighPrice")] == pytest.approx(100.0)
 
 
+def test_thick_client_skips_items_with_empty_payload():
+    realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100, 200])
+    # First item returns an empty data payload; second item is valid
+    # pylint: disable-next=protected-access
+    realtime_client._call_endpoint.side_effect = [
+        _response_with_data([]),
+        _response_with_data(
+            [
+                {"timestamp": 1, "avgHighPrice": 10},
+            ]
+        ),
+    ]
+
+    thick_client = RealtimePricesThickClient(realtime_client)
+    request = RealtimePricesRequest(
+        item_ids=("100", "200"),
+        timestep=Timestep.ONE_DAY,
+        interpolation_method=InterpolationMethod.NONE,
+    )
+
+    with pytest.warns(RuntimeWarning):
+        result = thick_client.get_prices(request)
+
+    assert ("100", "avgHighPrice") not in result.columns
+    assert ("200", "avgHighPrice") in result.columns
+    assert set(result.index) == {1}
+
+
+def test_thick_client_sorts_index_before_interpolation():
+    realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100, 200])
+    # Item 100 arrives with timestamps later in the series than item 200, ensuring concat would be unsorted
+    # pylint: disable-next=protected-access
+    realtime_client._call_endpoint.side_effect = [
+        _response_with_data(
+            [
+                {"timestamp": 3, "avgHighPrice": 100},
+                {"timestamp": 5, "avgHighPrice": 120},
+            ]
+        ),
+        _response_with_data(
+            [
+                {"timestamp": 1, "avgHighPrice": 10},
+                {"timestamp": 2, "avgHighPrice": 20},
+                {"timestamp": 3, "avgHighPrice": 30},
+                {"timestamp": 4, "avgHighPrice": 40},
+                {"timestamp": 5, "avgHighPrice": 50},
+            ]
+        ),
+    ]
+
+    thick_client = RealtimePricesThickClient(realtime_client)
+    request = RealtimePricesRequest(
+        item_ids=("100", "200"),
+        timestep=Timestep.ONE_DAY,
+        interpolation_method=InterpolationMethod.LINEAR,
+        interpolation_fill=InterpolationFill.GAPS_ONLY,
+    )
+
+    result = thick_client.get_prices(request)
+
+    assert result.index.is_monotonic_increasing
+    assert list(result.index) == [1, 2, 3, 4, 5]
+
+
+def test_thick_client_forward_fill_does_not_backfill_leading_values():
+    realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100, 200])
+    # pylint: disable-next=protected-access
+    realtime_client._call_endpoint.side_effect = [
+        _response_with_data(
+            [
+                {"timestamp": 2, "avgHighPrice": 200},
+                {"timestamp": 4, "avgHighPrice": 400},
+            ]
+        ),
+        _response_with_data(
+            [
+                {"timestamp": 1, "avgHighPrice": 50},
+                {"timestamp": 2, "avgHighPrice": 50},
+                {"timestamp": 3, "avgHighPrice": 50},
+                {"timestamp": 4, "avgHighPrice": 50},
+                {"timestamp": 5, "avgHighPrice": 50},
+            ]
+        ),
+    ]
+
+    thick_client = RealtimePricesThickClient(realtime_client)
+    request = RealtimePricesRequest(
+        item_ids=("100", "200"),
+        timestep=Timestep.ONE_DAY,
+        interpolation_method=InterpolationMethod.LINEAR,
+        interpolation_fill=InterpolationFill.FORWARD_FILL,
+    )
+
+    result = thick_client.get_prices(request)
+
+    assert pd.isna(result.loc[1, ("100", "avgHighPrice")])
+    assert result.loc[3, ("100", "avgHighPrice")] == pytest.approx(300.0)
+    assert result.loc[5, ("100", "avgHighPrice")] == pytest.approx(400.0)
+
+
+def test_thick_client_all_direction_interpolation_fills_edges():
+    realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100, 200])
+    # pylint: disable-next=protected-access
+    realtime_client._call_endpoint.side_effect = [
+        _response_with_data(
+            [
+                {"timestamp": 2, "avgHighPrice": 200},
+                {"timestamp": 4, "avgHighPrice": 400},
+            ]
+        ),
+        _response_with_data(
+            [
+                {"timestamp": 1, "avgHighPrice": 50},
+                {"timestamp": 2, "avgHighPrice": 50},
+                {"timestamp": 3, "avgHighPrice": 50},
+                {"timestamp": 4, "avgHighPrice": 50},
+                {"timestamp": 5, "avgHighPrice": 50},
+            ]
+        ),
+    ]
+
+    thick_client = RealtimePricesThickClient(realtime_client)
+    request = RealtimePricesRequest(
+        item_ids=("100", "200"),
+        timestep=Timestep.ONE_DAY,
+        interpolation_method=InterpolationMethod.LINEAR,
+        interpolation_fill=InterpolationFill.ALL,
+    )
+
+    result = thick_client.get_prices(request)
+
+    assert result.loc[1, ("100", "avgHighPrice")] == pytest.approx(200.0)
+    assert result.loc[3, ("100", "avgHighPrice")] == pytest.approx(300.0)
+    assert result.loc[5, ("100", "avgHighPrice")] == pytest.approx(400.0)
+
+
 def test_thick_client_keeps_missing_values_without_interpolation():
     realtime_client = MagicMock(spec=RealtimePricesClient)
     realtime_client._call_mapping_endpoint.return_value = _mapping_response([100, 200])
@@ -445,3 +585,52 @@ def test_thick_client_skips_items_with_missing_timestamp_column():
     assert ("100", "avgHighPrice") not in result.columns
     assert ("200", "avgHighPrice") in result.columns
     assert set(result.index) == {1}
+
+
+def test_thick_client_raises_on_invalid_json_response():
+    realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100])
+
+    bad_response = MagicMock()
+    bad_response.json.side_effect = ValueError("invalid json")
+
+    # pylint: disable-next=protected-access
+    realtime_client._call_endpoint.return_value = bad_response
+
+    thick_client = RealtimePricesThickClient(realtime_client)
+    request = RealtimePricesRequest(
+        item_ids=("100",),
+        timestep=Timestep.ONE_DAY,
+        interpolation_method=InterpolationMethod.NONE,
+    )
+
+    with pytest.raises(ValueError):
+        thick_client.get_prices(request)
+
+
+def test_thick_client_processes_non_200_response_without_raise():
+    realtime_client = MagicMock(spec=RealtimePricesClient)
+    realtime_client._call_mapping_endpoint.return_value = _mapping_response([100])
+
+    bad_status_response = MagicMock()
+    bad_status_response.status_code = 500
+    bad_status_response.json.return_value = {
+        "data": [
+            {"timestamp": 1, "avgHighPrice": 123},
+        ]
+    }
+
+    # pylint: disable-next=protected-access
+    realtime_client._call_endpoint.return_value = bad_status_response
+
+    thick_client = RealtimePricesThickClient(realtime_client)
+    request = RealtimePricesRequest(
+        item_ids=("100",),
+        timestep=Timestep.ONE_DAY,
+        interpolation_method=InterpolationMethod.NONE,
+    )
+
+    result = thick_client.get_prices(request)
+
+    assert result.loc[1, ("100", "avgHighPrice")] == 123
+    assert bad_status_response.status_code == 500

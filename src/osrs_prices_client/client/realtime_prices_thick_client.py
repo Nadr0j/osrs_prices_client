@@ -92,7 +92,7 @@ class RealtimePricesThickClient:
     def get_prices(self, request: RealtimePricesRequest) -> pd.DataFrame:
         self._validate_item_ids(request.item_ids)
         dfs = [self._fetch_item_frame(item_id, request.timestep) for item_id in request.item_ids]
-        concatenated_df = pd.concat(dfs, axis=1, join="outer")
+        concatenated_df = pd.concat(dfs, axis=1, join="outer").sort_index()
 
         if request.interpolation_method != InterpolationMethod.NONE:
             concatenated_df = self._interpolate(concatenated_df, request)
