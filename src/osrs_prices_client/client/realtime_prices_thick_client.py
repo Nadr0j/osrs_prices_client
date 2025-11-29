@@ -9,7 +9,7 @@ from .realtime_prices_client import RealtimePricesClient
 from ..exceptions import InvalidItemIdError
 from ..model.realtime_prices_request import RealtimePricesRequest
 from ..model.timestep import Timestep
-from ..model.interpolation_method import InterpolationMethod
+from ..model.interpolation_method import InterpolationFill, InterpolationMethod
 
 
 class RealtimePricesThickClient:
@@ -92,9 +92,23 @@ class RealtimePricesThickClient:
     def get_prices(self, request: RealtimePricesRequest) -> pd.DataFrame:
         self._validate_item_ids(request.item_ids)
         dfs = [self._fetch_item_frame(item_id, request.timestep) for item_id in request.item_ids]
-        concatenated_df = pd.concat(dfs, axis=1, join="outer")
+        concatenated_df = pd.concat(dfs, axis=1, join="outer").sort_index()
 
-        if request.interpolation_method == InterpolationMethod.LINEAR:
-            concatenated_df = concatenated_df.interpolate(method="linear")
+        if request.interpolation_method != InterpolationMethod.NONE:
+            concatenated_df = self._interpolate(concatenated_df, request)
 
         return concatenated_df
+
+    def _interpolate(self, df: pd.DataFrame, request: RealtimePricesRequest) -> pd.DataFrame:
+        method_kwargs: dict[str, str] = {"method": request.interpolation_method.value}
+
+        if request.interpolation_fill is InterpolationFill.GAPS_ONLY:
+            method_kwargs["limit_area"] = "inside"
+        elif request.interpolation_fill is InterpolationFill.FORWARD_FILL:
+            method_kwargs["limit_direction"] = "forward"
+        elif request.interpolation_fill is InterpolationFill.BACKFILL:
+            method_kwargs["limit_direction"] = "backward"
+        elif request.interpolation_fill is InterpolationFill.ALL:
+            method_kwargs["limit_direction"] = "both"
+
+        return df.interpolate(**method_kwargs)

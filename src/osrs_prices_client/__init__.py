@@ -2,7 +2,13 @@
 
 from .client import RealtimePricesClient, RealtimePricesThickClient
 from .exceptions import InvalidItemIdError
-from .model import FeatureBuilder, InterpolationMethod, RealtimePricesRequest, Timestep
+from .model import (
+    FeatureBuilder,
+    InterpolationFill,
+    InterpolationMethod,
+    RealtimePricesRequest,
+    Timestep,
+)
 from .orchestrator import FeatureBuilderOrchestrator
 
 # Module-level namespaces for discoverability and IDE-friendly autocomplete.
@@ -16,6 +22,7 @@ __all__ = [
     "RealtimePricesThickClient",
     "FeatureBuilder",
     "InvalidItemIdError",
+    "InterpolationFill",
     "InterpolationMethod",
     "RealtimePricesRequest",
     "Timestep",

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from .timestep import Timestep
-from .interpolation_method import InterpolationMethod
+from .interpolation_method import InterpolationFill, InterpolationMethod
 
 
 @dataclass
@@ -10,3 +10,4 @@ class RealtimePricesRequest:
     item_ids: set[str]
     timestep: Timestep
     interpolation_method: InterpolationMethod = InterpolationMethod.NONE
+    interpolation_fill: InterpolationFill = InterpolationFill.FORWARD_FILL
